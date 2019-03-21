@@ -48,7 +48,6 @@ int main()
 	{
 		// select function cause chaning of fd. so we need copy of fd
 		fd_set copy = master;
-
 		int socketCount = select(0, &copy, nullptr, nullptr, nullptr);
 
 		for (int i = 0; i < socketCount; i++)
@@ -66,6 +65,20 @@ int main()
 				// Send a welcome message to the connted client
 				string welcomeMsg = "Welcome to the Chat Server!\r\n";
 				send(client, welcomeMsg.c_str(), welcomeMsg.size() + 1, 0);
+
+				// broadcast welcome message
+				for (int i = 0; i < master.fd_count; i++)
+				{
+					SOCKET outSock = master.fd_array[i];
+					if (outSock != listening && outSock != client)
+					{
+						ostringstream ss;
+						ss << "SOCKET #" << client << " connect to chat server.\r\n";
+						string strOut = ss.str();
+
+						send(outSock, strOut.c_str(), strOut.size() + 1, 0);
+					}
+				}
 			}
 			else
 			{
