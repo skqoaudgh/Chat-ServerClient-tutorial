@@ -42,8 +42,11 @@ int main()
 
 	FD_SET(listening, &master);
 
-	while (true)
+	bool running = true;
+
+	while (running)
 	{
+		// select function cause chaning of fd. so we need copy of fd
 		fd_set copy = master;
 
 		int socketCount = select(0, &copy, nullptr, nullptr, nullptr);
@@ -51,6 +54,7 @@ int main()
 		for (int i = 0; i < socketCount; i++)
 		{
 			SOCKET sock = copy.fd_array[i];
+
 			if (sock == listening)
 			{
 				// Accept a new conneciton
@@ -62,8 +66,6 @@ int main()
 				// Send a welcome message to the connted client
 				string welcomeMsg = "Welcome to the Chat Server!\r\n";
 				send(client, welcomeMsg.c_str(), welcomeMsg.size() + 1, 0);
-
-				// TOOD: Broadcast we have a new connection
 			}
 			else
 			{
@@ -80,6 +82,17 @@ int main()
 				}
 				else
 				{
+					// Check to see if it`s a command.  \quit kills the server
+					if (buf[0] == '\\')
+					{
+						string cmd = string(buf, bytesIn);
+						if (cmd == "\\quit")
+						{
+							running = false;
+							break;
+						}
+					}
+
 					// Send message to other client, and definiately not the listening socket
 					for (int i = 0; i < master.fd_count; i++)
 					{
@@ -87,7 +100,7 @@ int main()
 						if (outSock != listening && outSock != sock)
 						{
 							ostringstream ss;
-							ss << "SOCKET #" << sock << ":" << buf << "\r";
+							ss << "SOCKET #" << sock << ":" << buf << "\r\n";
 							string strOut = ss.str();
 
 							send(outSock, strOut.c_str(), strOut.size()+1, 0);
@@ -96,6 +109,21 @@ int main()
 				}
 			}
 		}
+	}
+	// Close listening socket
+	FD_CLR(listening, &master);
+	closesocket(listening);
+
+	// broadcast closing messasge and close clinet socket
+	string msg = "Server is shutting down. Goodbye\r\n";
+	while (master.fd_count > 0)
+	{
+		SOCKET sock = master.fd_array[0];
+
+		send(sock, msg.c_str(), msg.size() + 1, 0);
+
+		FD_CLR(sock, &master);
+		closesocket(sock);
 	}
 
 	// Cleanup Winsock
