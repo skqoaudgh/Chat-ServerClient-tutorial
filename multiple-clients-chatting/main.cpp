@@ -1,5 +1,7 @@
 #include <iostream>
 #include <WS2tcpip.h>
+#include <string>
+#include <sstream>
 #pragma comment(lib,"ws2_32.lib")
 using namespace std;
 
@@ -34,6 +36,74 @@ int main()
 
 	// Tell Winsock the socket is for listening
 	listen(listening, SOMAXCONN);
+
+	fd_set master; // data-structrue that contains list of socket, and their stats
+	FD_ZERO(&master);
+
+	FD_SET(listening, &master);
+
+	while (true)
+	{
+		fd_set copy = master;
+
+		int socketCount = select(0, &copy, nullptr, nullptr, nullptr);
+
+		for (int i = 0; i < socketCount; i++)
+		{
+			SOCKET sock = copy.fd_array[i];
+			if (sock == listening)
+			{
+				// Accept a new conneciton
+				SOCKET client = accept(listening, nullptr, nullptr);
+
+				// Add the new connection to the list of connected clients
+				FD_SET(client, &master);
+
+				// Send a welcome message to the connted client
+				string welcomeMsg = "Welcome to the Chat Server!\r\n";
+				send(client, welcomeMsg.c_str(), welcomeMsg.size() + 1, 0);
+
+				// TOOD: Broadcast we have a new connection
+			}
+			else
+			{
+				char buf[4096];
+				ZeroMemory(buf, 4096);
+
+				// Receive Message
+				int bytesIn = recv(sock, buf, 4096, 0);
+				if (bytesIn <= 0)
+				{
+					// Drop the client
+					closesocket(sock);
+					FD_CLR(sock, &master);
+				}
+				else
+				{
+					// Send message to other client, and definiately not the listening socket
+					for (int i = 0; i < master.fd_count; i++)
+					{
+						SOCKET outSock = master.fd_array[i];
+						if (outSock != listening && outSock != sock)
+						{
+							ostringstream ss;
+							ss << "SOCKET #" << sock << ":" << buf << "\r";
+							string strOut = ss.str();
+
+							send(outSock, strOut.c_str(), strOut.size()+1, 0);
+						}
+					}
+				}
+			}
+		}
+	}
+
+	// Cleanup Winsock
+	WSACleanup();
+	return 0;
+}
+
+/*
 
 	// Wait for a connection
 	sockaddr_in client;
@@ -79,14 +149,12 @@ int main()
 			break;
 		}
 
+		cout << string(buf, 0, bytesReceived) << endl;
+
 		// Echo message back to client
 		send(clientSocket, buf, bytesReceived + 1, 0);
 	}
 
 	// Close the socket
 	closesocket(clientSocket);
-
-	// Cleanup Winsock
-	WSACleanup();
-	return 0;
-}
+*/
