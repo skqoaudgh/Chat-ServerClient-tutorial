@@ -67,18 +67,19 @@ int main()
 				send(client, welcomeMsg.c_str(), welcomeMsg.size() + 1, 0);
 
 				// broadcast welcome message
+				ostringstream ss;
+				ss << "SOCKET #" << client << " connect to chat server.\r\n";
+				string strOut = ss.str();
 				for (int i = 0; i < master.fd_count; i++)
 				{
 					SOCKET outSock = master.fd_array[i];
 					if (outSock != listening && outSock != client)
 					{
-						ostringstream ss;
-						ss << "SOCKET #" << client << " connect to chat server.\r\n";
-						string strOut = ss.str();
-
 						send(outSock, strOut.c_str(), strOut.size() + 1, 0);
 					}
 				}
+				// logging welcome message to server
+				cout << strOut << endl;
 			}
 			else
 			{
@@ -107,18 +108,19 @@ int main()
 					}
 
 					// Send message to other client, and definiately not the listening socket
+					ostringstream ss;
+					ss << "SOCKET #" << sock << ":" << buf << "\r\n";
+					string strOut = ss.str();
 					for (int i = 0; i < master.fd_count; i++)
 					{
 						SOCKET outSock = master.fd_array[i];
-						if (outSock != listening && outSock != sock)
+						if (outSock != listening)
 						{
-							ostringstream ss;
-							ss << "SOCKET #" << sock << ":" << buf << "\r\n";
-							string strOut = ss.str();
-
 							send(outSock, strOut.c_str(), strOut.size()+1, 0);
 						}
 					}
+					// logging user`s message to server
+					cout << strOut << endl;
 				}
 			}
 		}
