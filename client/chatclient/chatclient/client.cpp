@@ -45,6 +45,56 @@ int main()
 		return 1;
 	}
 
+	char buf[4096];
+	string userInput;
+
+	fd_set master;
+
+	// while loop to send and receive data
+	while (1)
+	{
+		FD_ZERO(&master);
+		FD_SET(sock, &master);
+		FD_SET(0, &master);
+
+		if (select(sock + 1, &master, nullptr, nullptr, nullptr) > 0)
+		{
+			cerr << "select() error! Quitting" << endl;
+			closesocket(sock);
+			return 1;
+		}
+		// receive a message from server
+		if (FD_ISSET(sock, &master) == 1)
+		{
+			ZeroMemory(buf, 4096);
+			int bytesReceived = recv(sock, buf, 4096, 0);
+			if (bytesReceived > 0)
+			{
+				// Receive the text
+				cout << "SERVER> " << string(buf, 0, bytesReceived) << endl;
+			}
+		}
+		// send a message to server
+		if (FD_ISSET(0, &master) == 1)
+		{
+			cout << "> ";
+			getline(cin, userInput);
+			if (userInput.size() > 0) // Make sure the user has typed in something
+			{
+				// Send the text
+				send(sock, userInput.c_str(), userInput.size() + 1, 0);
+				continue;
+			}
+		}
+	}
+
+	// Gracefully close down everything
+	closesocket(sock);
+	WSACleanup();
+	return 0;
+}
+
+/*
 	// Do-while loop to send and receive data
 	char buf[4096];
 	string userInput;
@@ -78,8 +128,4 @@ int main()
 		}
 	} while (userInput.size() > 0);
 
-	// Gracefully close down everything
-	closesocket(sock);
-	WSACleanup();
-	return 0;
-}
+*/
